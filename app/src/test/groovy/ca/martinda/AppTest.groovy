@@ -16,4 +16,14 @@ class AppTest extends Specification {
         then:
         result != null
     }
+    def "This test fails to test the junit report"() {
+        setup:
+        def app = new App()
+
+        when:
+        def result = app.greeting
+
+        then:
+        assert false
+    }
 }
