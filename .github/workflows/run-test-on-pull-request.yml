@@ -1,25 +1,41 @@
-# This workflow runs tests on pull-requests but does not merge them
-# To run a test, simply comment with /test
+# This workflow builds pull-requests but does not merge them
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
 
-name: Run test on Pull-Request
+name: Pull-Request Build
 
 on:
     issue_comment:
         types: [created]
 
 jobs:
-  test-pull-request:
+  build-pull-request:
     name: Run tests
+    # if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/test') }}
     if: ${{ github.event.issue.pull_request && github.event.comment.body == '/test' }}
 
     runs-on: ubuntu-latest
 
     steps:
+
+        # Some steps for learning and for debug
+        #- name: github.event.issue.pull_request (debug)
+        #  env:
+        #      PR: ${{ toJSON(github.event.issue.pull_request) }}
+        #  run: echo "-- $PR --"
+        #- name: github.event.comment.body (debug)
+        #  env:
+        #      COMMENT: ${{ toJSON(github.event.comment.body) }}
+        #  run: echo "-- $COMMENT --"
+        #- name: GITHUB_EVENT_PATH (debug)
+        #  run: cat $GITHUB_EVENT_PATH
+        #- name: curl pull request url (debug)
+        #  run: curl -s -X GET ${{ github.event.issue.pull_request.url }}
+
         - name: Get PR context
           id: pr-context
           uses: actions/github-script@v4.1.0
           with:
-              # The json result encoding still returns a string, not a JSON object
+              # the return value is always a string, even when set to "json"
               result-encoding: json
               script: |
                   const response = await github.pulls.get({
@@ -30,39 +46,71 @@ jobs:
                   console.log(response)
                   return response
 
-        - name: Checkout the main branch
+        # Update the PR status check by posting to the PR head sha
+        # job.status can be success, failure or cancelled
+        # See: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-context
+        # Status functions are always(), success(), failure(), cancelled()
+        # See: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-status-check-functions
+        # The POSTed state can be error, failure, pending or success
+        # See https://docs.github.com/en/rest/reference/repos#create-a-commit-status
+        - name: Update status to pending
+          run: |
+              curl -X POST -v \
+              --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+              --header "Accept: application/vnd.github.v3+json" \
+              --data '{
+                  "context": "build-pull-request",
+                  "state": "pending",
+                  "description": "build-pull-request pending",
+                  "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }' \
+              --url 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ fromJSON(steps.pr-context.outputs.result).data.head.sha }}' \
+              --fail
+
+        # Examples of the different ways to use the pr-context json string
+        #- name: Examine pr-context
+        #  env:
+        #      PR1: ${{ toJSON(steps.pr-context.outputs) }}
+        #      PR2: ${{ toJSON(steps.pr-context.outputs.result) }}
+        #      PR3: ${{ fromJSON(steps.pr-context.outputs.result).status }}
+        #      PR4: ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}
+        #      PR5: ${{ toJSON(fromJSON(steps.pr-context.outputs.result).data) }}
+        #  run: |
+        #      echo "PR3: $PR3"
+        #      echo "PR4: $PR4"
+        - name: Checkout the merge commit
           uses: actions/checkout@v2
           with:
-              fetch-depth: 0
+              # Use either fetch-depth: 0 and manually merge, or reference the merge_commit_sha
+              ref: ${{ fromJSON(steps.pr-context.outputs.result).data.merge_commit_sha }}
 
-        - name: Fetch the pull-request
-          run: git fetch origin +refs/pull/${{ github.event.issue.number }}/head:refs/remotes/origin/pr/${{ github.event.issue.number }}
+        # Manually merge the PR - don't use if referencing a checkout commit above because it will be shallow
+        #- name: Fetch the pull-request
+        #  run: git fetch origin +refs/pull/${{ github.event.issue.number }}/head:refs/remotes/origin/pr/${{ github.event.issue.number }}
+        #- name: Switch to the PR branch
+        #  run: git switch pr/${{ github.event.issue.number }}
+        #- name: Fetch the destination branch
+        #  run: git fetch origin ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}
+        #- name: Switch to destination branch
+        #  run: git switch ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}
 
-        - name: Create and switch to the PR branch
-          run: git switch pr/${{ github.event.issue.number }}
-
-        - name: Fetch the destination branch
-          run: git fetch origin ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}
-
-        - name: Create and switch to destination branch
-          run: git switch ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}
-
-        # The git log helps debug the process
+        # Examining the git log before manually merging (for debug)
         - name: Git log
           run: |
-              git log --format=format:"%C(auto)%h %C(cyan)%ar%C(auto) %d %C(green)%aN%Creset %s" --graph --all -n 10
+              git log --format=format:"%C(auto)%h %C(cyan)%ar%C(auto) %d %C(green)%aN%Creset %s" --graph --all -n 15
 
-        - name: Merge PR into destination branch
-          run: |
-              git config --local user.email "action@github.com"
-              git config --local user.name "GitHub Action"
-              git merge --no-ff -m "Merge PR ${{ github.event.issue.number }} to ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}" pr/${{ github.event.issue.number }}
+        # Manually merge the PR
+        #- name: Merge PR into destination branch
+        #  run: |
+        #      git config --local user.email "action@github.com"
+        #      git config --local user.name "GitHub Action"
+        #      git merge --no-ff -m "Merge PR ${{ github.event.issue.number }} to ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}" pr/${{ github.event.issue.number }}
 
-        # Showing the summary helps to see if the merge-commit was created
-        # This step could be commented out or removed
+        # Examine the merge commit (debug)
         - name: Show summary
           run: git show --summary
 
+        # Now to the point of the build
         - name: Set up JDK 11
           uses: actions/setup-java@v2
           with:
@@ -71,13 +119,28 @@ jobs:
             cache: 'gradle'
 
         - name: Grant execute permission for gradlew
-          run: chmod +x gradlew
+          # Using --scan publishes the test results to the gradle server
+          # When using spock test, the gradle server shows the details of the failures, eliminating the need to publish JUnit test reports
+          run: |
+              chmod +x gradlew
+              ./gradlew test --console=plain --no-daemon --scan
 
-        - name: Build with Gradle
-          run: ./gradlew build --console=plain --no-daemon
-
-        - name: Publish Test Report
-          uses: mikepenz/action-junit-report@v2
-          if: always() # always run even if the previous step fails
-          with:
-              report_paths: '**/build/test-results/test/TEST-*.xml'
+        - name: Update PR status
+          # job.status can be: success, failure or cancelled
+          # The REST API for a commit status can accept: error, failure, pending or success
+          # We can only map success or failure from job.status to the REST API.
+          # The "cancelled" status cannot be mapped.
+          # See https://docs.github.com/en/rest/reference/repos#create-a-commit-status
+          if: ${{ success() || failure() }}
+          run: |
+              curl -X POST -v \
+              --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+              --header "Accept: application/vnd.github.v3+json" \
+              --data '{
+                  "context": "build-pull-request",
+                  "state": "${{ job.status }}",
+                  "description": "build-pull-request ${{ job.status }}",
+                  "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              }' \
+              --url 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ fromJSON(steps.pr-context.outputs.result).data.head.sha }}' \
+              --fail
