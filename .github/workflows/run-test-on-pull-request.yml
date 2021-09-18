@@ -129,7 +129,7 @@ jobs:
           uses: mikepenz/action-junit-report@v2
           if: always()
           with:
-              report_paths: '**build/test-results/test/TEST-*.xml'
+              report_paths: '**/build/test-results/test/TEST-*.xml'
 
         - name: Update PR status
           # job.status can be: success, failure or cancelled
@@ -143,9 +143,9 @@ jobs:
               --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
               --header "Accept: application/vnd.github.v3+json" \
               --data '{
-                  "context": "build-pull-request",
+                  "context": "build-pull-request-1",
                   "state": "${{ job.status }}",
-                  "description": "build-pull-request ${{ job.status }}",
+                  "description": "build-pull-request-2 ${{ job.status }}",
                   "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               }' \
               --url 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ fromJSON(steps.pr-context.outputs.result).data.head.sha }}' \
