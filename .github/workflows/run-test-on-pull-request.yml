@@ -118,12 +118,18 @@ jobs:
             distribution: 'adopt'
             cache: 'gradle'
 
-        - name: Grant execute permission for gradlew
+        - name: Run tests
           # Using --scan publishes the test results to the gradle server
           # When using spock test, the gradle server shows the details of the failures, eliminating the need to publish JUnit test reports
           run: |
               chmod +x gradlew
               ./gradlew test --console=plain --no-daemon --scan
+
+        - name: Publish test reports
+          uses: mikepenz/action-junit-report@v2
+          if: always()
+          with:
+              report_path: '**build/test-results/test/TEST-*.xml'
 
         - name: Update PR status
           # job.status can be: success, failure or cancelled
