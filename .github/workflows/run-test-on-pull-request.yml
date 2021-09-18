@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-pull-request:
-    name: Run pull-request tests
+    name: Run pull-request tests abcdef
     # if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/test') }}
     if: ${{ github.event.issue.pull_request && github.event.comment.body == '/test' }}
 
@@ -53,15 +53,16 @@ jobs:
         # See: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-status-check-functions
         # The POSTed state can be error, failure, pending or success
         # See https://docs.github.com/en/rest/reference/repos#create-a-commit-status
+        # The context (in the data) is a name Github uses for status check in the branch protection UI
         - name: Update status to pending
           run: |
               curl -X POST -v \
               --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
               --header "Accept: application/vnd.github.v3+json" \
               --data '{
-                  "context": "build-pull-request",
+                  "context": "pull-request-test",
                   "state": "pending",
-                  "description": "build-pull-request pending",
+                  "description": "pull-request-test pending",
                   "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               }' \
               --url 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ fromJSON(steps.pr-context.outputs.result).data.head.sha }}' \
@@ -143,9 +144,9 @@ jobs:
               --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
               --header "Accept: application/vnd.github.v3+json" \
               --data '{
-                  "context": "build-pull-request-1",
+                  "context": "pull-request-test",
                   "state": "${{ job.status }}",
-                  "description": "build-pull-request-2 ${{ job.status }}",
+                  "description": "pull-request-test ${{ job.status }}",
                   "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               }' \
               --url 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ fromJSON(steps.pr-context.outputs.result).data.head.sha }}' \
