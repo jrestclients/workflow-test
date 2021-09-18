@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-pull-request:
-    name: Run tests
+    name: Run pull-request tests
     # if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/test') }}
     if: ${{ github.event.issue.pull_request && github.event.comment.body == '/test' }}
 
