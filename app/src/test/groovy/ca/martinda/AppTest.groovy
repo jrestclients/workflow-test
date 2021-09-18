@@ -24,6 +24,6 @@ class AppTest extends Specification {
         def result = app.greeting
 
         then:
-        result == "Hello!"
+        result == "Hello World!"
     }
 }
