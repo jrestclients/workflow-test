@@ -10,7 +10,9 @@ on:
     # Only following types are handled by the action, but one can default to all as well
     types: [opened, reopened, synchronize]
 
-permissions: write-all
+permissions:
+    contents: write
+    pull-requests: read
 
 jobs:
   update_release_draft:
