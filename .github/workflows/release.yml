@@ -1,0 +1,28 @@
+name: Release published
+
+on:
+    release:
+        types: [published]
+
+jobs:
+  perform-release:
+    name: Perform a release
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+        # Some steps for learning and for debug
+        - name: GITHUB_EVENT_PATH (debug)
+          run: cat $GITHUB_EVENT_PATH
+        #- name: github.event.issue.pull_request (debug)
+        #  env:
+        #      PR: ${{ toJSON(github.event.issue.pull_request) }}
+        #  run: echo "-- $PR --"
+        #- name: github.event.comment.body (debug)
+        #  env:
+        #      COMMENT: ${{ toJSON(github.event.comment.body) }}
+        #  run: echo "-- $COMMENT --"
+        #- name: curl pull request url (debug)
+        #  run: curl -s -X GET ${{ github.event.issue.pull_request.url }}
+
