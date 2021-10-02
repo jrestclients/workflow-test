@@ -1,0 +1,54 @@
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
+        }
+    }
+}
+
+String repoName = "workflow-test"
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact testsJar
+            artifact docsJar
+
+            pom.withXml {
+                def root = asNode()
+                root.appendNode('name', 'JRestClients Workflow Test')
+                root.appendNode('description', 'A development workflow test repository for jrestclients.')
+                root.appendNode('url', "https://github.com/jrestclients/${repoName}")
+                root.appendNode('inceptionYear', '2021')
+
+                def scm = root.appendNode('scm')
+                scm.appendNode('url', "https://github.com/jrestclients/${repoName}")
+                scm.appendNode('connection', "scm:https://martinda@github.com/jrestclients/${repoName}.git")
+                scm.appendNode('developerConnection', "scm:git://github.com/jrestclients/${repoName}.git")
+
+                def license = root.appendNode('licenses').appendNode('license')
+                license.appendNode('name', 'The Apache Software License, Version 2.0')
+                license.appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
+                license.appendNode('distribution', 'repo')
+
+                def developers = root.appendNode('developers')
+                def martinda = developers.appendNode('developer')
+                martinda.appendNode('id', 'martinda')
+                martinda.appendNode('name', "Martin d'Anjou")
+                martinda.appendNode('email', 'martin.danjou14@gmail.com')
+            }
+        }
+    }
+}
+
+signing {
+    required {
+        !version.endsWith("SNAPSHOT") && gradle.taskGraph.hasTask("publish")
+    }
+    sign publishing.publications.mavenJava
+}
