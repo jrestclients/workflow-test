@@ -26,3 +26,21 @@ jobs:
         #- name: curl pull request url (debug)
         #  run: curl -s -X GET ${{ github.event.issue.pull_request.url }}
 
+        # Checkout the tip of main
+        - name: Checkout main
+          uses: actions/checkout@v2
+
+        - name: Git show
+          run: git show --summary
+
+        # Build and test
+        - name: Build and test
+          uses: actions/setup-java@v2
+          with:
+            java-version: '11'
+            distribution: 'adopt'
+            cache: 'gradle'
+          run: |
+              chmod +x gradlew
+              ./gradlew test publishToManveLocal --console=plain --no-daemon --scan
+
