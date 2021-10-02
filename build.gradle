@@ -7,6 +7,9 @@
  */
 
 plugins {
+    // When creating the all encompassing jar, shadow the dependencies toi avoid conflicts
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+
     // Apply the groovy plugin to also add support for Groovy (needed for Spock)
     id 'groovy'
 
@@ -15,6 +18,17 @@ plugins {
 
     // Code coverage
     id 'jacoco'
+
+    // Publish to maven central
+    id "io.github.gradle-nexus.publish-plugin" version "1.1.0"
+
+}
+
+apply from: "$rootDir/gradle/additional-artifacts.gradle"
+apply from: "$rootDir/gradle/publishing.gradle"
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ["-Xlint:-options"]
 }
 
 group = "io.github.jrestclients"
@@ -44,6 +58,17 @@ tasks.withType(JavaCompile) {
 application {
     // Define the main class for the application.
     mainClass = 'ca.martinda.App'
+}
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Workflow test',
+                   'Implementation-Version': archiveVersion,
+                   'Built-By': System.getProperty('user.name'),
+                   'Built-Date': new Date(),
+                   'Built-JDK': System.getProperty('java.version'),
+                   'Built-Gradle': gradle.gradleVersion
+    }
 }
 
 tasks.named('test') {
