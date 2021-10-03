@@ -49,6 +49,7 @@ jobs:
           run: |
               chmod +x gradlew
               ./gradlew --version
-              ./gradlew test publishToMavenLocal --info --console=plain --no-daemon -Pversion=${{ github.event.release.tag_name }}
+              ./gradlew test publishToMavenLocal publishToSonatype closeSonatypeStagingRepository --info --console=plain -Pversion=${{ github.event.release.tag_name }}
               tree ~/.m2/repository/io/github/jrestclients
+              ./gradlew --stop
 
