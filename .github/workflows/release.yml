@@ -27,6 +27,9 @@ jobs:
         #- name: curl pull request url (debug)
         #  run: curl -s -X GET ${{ github.event.issue.pull_request.url }}
 
+        - name: Show release tag
+          run: echo ${{ github.event.release.tag_name }}
+
         # Checkout the tip of main
         - name: Checkout main
           uses: actions/checkout@v2
@@ -46,5 +49,6 @@ jobs:
           run: |
               chmod +x gradlew
               ./gradlew --version
-              ./gradlew test publishToMavenLocal --console=plain --no-daemon --scan
+              ./gradlew test publishToMavenLocal --console=plain --no-daemon -Pversion=${{ github.event.release.tag_name }}
+              tree ~/.m2/repository/io/github/jresclients
 
