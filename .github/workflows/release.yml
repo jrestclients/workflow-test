@@ -46,10 +46,26 @@ jobs:
             cache: 'gradle'
 
         - name: Build, test and publishToMavenLocal
+          env:
+              ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+              ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
+              ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+              ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
+              ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
+
           run: |
               chmod +x gradlew
-              ./gradlew --version
-              ./gradlew test publishToMavenLocal publishToSonatype closeSonatypeStagingRepository --info --console=plain -Pversion=${{ github.event.release.tag_name }}
+              ./gradlew \
+                  --info \
+                  --console=plain \
+                  --no-daemon \
+                  test \
+                  publishToMavenLocal \
+                  publishToSonatype \
+                  closeSonatypeStagingRepository \
+                  -Pversion=${{ github.event.release.tag_name }} \
+                  -PsignPublication=true
               tree ~/.m2/repository/io/github/jrestclients
               ./gradlew --stop
 
+              # Additional steps are needed to update the documentation

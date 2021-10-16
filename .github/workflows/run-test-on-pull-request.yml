@@ -1,5 +1,6 @@
 # This workflow builds pull-requests but does not merge them
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
+#
 
 name: Pull-Request Build
 
@@ -9,7 +10,8 @@ on:
 
 jobs:
   build-pull-request:
-    name: Run pull-request tests abcdef
+    name: Run pull-request testing
+    # The run is triggered by a user entering /test as a PR comment
     # if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/test') }}
     if: ${{ github.event.issue.pull_request && github.event.comment.body == '/test' }}
 
@@ -31,6 +33,8 @@ jobs:
         #- name: curl pull request url (debug)
         #  run: curl -s -X GET ${{ github.event.issue.pull_request.url }}
 
+        # Get PR context
+        # This will give us the head SHA1 which is used when posting the status
         - name: Get PR context
           id: pr-context
           uses: actions/github-script@v4.1.0
@@ -46,14 +50,8 @@ jobs:
                   console.log(response)
                   return response
 
-        # Update the PR status check by posting to the PR head sha
-        # job.status can be success, failure or cancelled
-        # See: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-context
-        # Status functions are always(), success(), failure(), cancelled()
-        # See: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-status-check-functions
-        # The POSTed state can be error, failure, pending or success
-        # See https://docs.github.com/en/rest/reference/repos#create-a-commit-status
-        # The context (in the data) is a name Github uses for status check in the branch protection UI
+        # Update the PR status to pending
+        # Done by posting "pending" to the PR head sha
         - name: Update status to pending
           run: |
               curl -X POST -v \
@@ -79,12 +77,16 @@ jobs:
         #  run: |
         #      echo "PR3: $PR3"
         #      echo "PR4: $PR4"
+
+        # Checkout the merge commit
+        # This is the commit we build
         - name: Checkout the merge commit
           uses: actions/checkout@v2
           with:
               # Use either fetch-depth: 0 and manually merge, or reference the merge_commit_sha
               ref: ${{ fromJSON(steps.pr-context.outputs.result).data.merge_commit_sha }}
 
+        # We don't manually merge the PR, but this is how it would be setup
         # Manually merge the PR - don't use if referencing a checkout commit above because it will be shallow
         #- name: Fetch the pull-request
         #  run: git fetch origin +refs/pull/${{ github.event.issue.number }}/head:refs/remotes/origin/pr/${{ github.event.issue.number }}
@@ -95,11 +97,12 @@ jobs:
         #- name: Switch to destination branch
         #  run: git switch ${{ fromJSON(steps.pr-context.outputs.result).data.base.ref }}
 
-        # Examining the git log before manually merging (for debug)
+        # Examining the git log (for debug)
         - name: Git log
           run: |
               git log --format=format:"%C(auto)%h %C(cyan)%ar%C(auto) %d %C(green)%aN%Creset %s" --graph --all -n 15
 
+        # We don't manually merge the PR, but this is how it would be done
         # Manually merge the PR
         #- name: Merge PR into destination branch
         #  run: |
@@ -111,7 +114,7 @@ jobs:
         - name: Show summary
           run: git show --summary
 
-        # Now to the point of the build
+        # Setup Java
         - name: Set up JDK 11
           uses: actions/setup-java@v2
           with:
@@ -120,11 +123,18 @@ jobs:
             cache: 'gradle'
 
         - name: Run tests
+          # Setup the credentials to sign the publication
+          env:
+              ORG_GRADLE_PROJECT_marauders_map: "Mind your business Snape!"
+              #ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+              #ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
+              #ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
           # Using --scan publishes the test results to the gradle server
           # When using spock test, the gradle server shows the details of the failures, eliminating the need to publish JUnit test reports
           run: |
               chmod +x gradlew
-              ./gradlew test --console=plain --no-daemon --scan
+              # ./gradlew build publishToMavenLocal -PsignPublication=true --console=plain --no-daemon --scan
+              ./gradlew build publishToMavenLocal --console=plain --no-daemon --scan
 
         - name: Publish test reports
           uses: mikepenz/action-junit-report@v2
@@ -132,12 +142,21 @@ jobs:
           with:
               report_paths: '**/build/test-results/test/TEST-*.xml'
 
+        # Update the PR status by posting a status to the head SHA1 of the PR
+        # This is called a "commit status".
+        #
+        # First, some background information:
+        # Status functions are always(), success(), failure(), cancelled()
+        #     - See: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-status-check-functions
+        # job.status can be: success, failure or cancelled
+        #     - See: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-context
+        # The REST API for a commit status can accept: error, failure, pending or success
+        #     - See https://docs.github.com/en/rest/reference/repos#create-a-commit-status
+        #
+        # When the job status success() function returns true, set commit-status to job.status (success)
+        # When the job status failure() function returns true, set commit-status to job.status (failure)
+        # Nothing else can update the commit-status, so it remains in its previous state (pending)
         - name: Update PR status
-          # job.status can be: success, failure or cancelled
-          # The REST API for a commit status can accept: error, failure, pending or success
-          # We can only map success or failure from job.status to the REST API.
-          # The "cancelled" status cannot be mapped.
-          # See https://docs.github.com/en/rest/reference/repos#create-a-commit-status
           if: ${{ success() || failure() }}
           run: |
               curl -X POST -v \
