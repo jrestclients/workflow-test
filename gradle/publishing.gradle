@@ -46,9 +46,15 @@ publishing {
     }
 }
 
-def signPublication = findProperty("signPublication")?.toBoolean()
-
+// To get the list of all pgp packets
+// gpg -a --export <keyid> | gpg --list-packets --verbose
+// To get the list of all keys and subkeys
+// gpg --keyid-format LONG --list-keys
+// How I got the password: ran this until all chars could be echo'ed on the command line without
+// causing trouble with bash
+// tr -cd '[:graph:]' < /dev/urandom | head -c 40
 signing {
+    boolean signPublication = findProperty("signPublication")?.toBoolean()
     def signingKeyId = findProperty("signingKeyId")
     def signingKey = findProperty("signingKey")
     def signingPassword = findProperty("signingPassword")
