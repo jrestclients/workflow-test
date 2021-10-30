@@ -18,5 +18,6 @@ public class App {
         System.out.println("Hello six");
         System.out.println("Hello sept");
         System.out.println("Hello huit");
+        System.out.println("Hello 10 (pas de 9)");
     }
 }
