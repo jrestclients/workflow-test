@@ -122,12 +122,19 @@ jobs:
             distribution: 'adopt'
             cache: 'gradle'
 
+        - name: Validate gradle wrapper
+          uses: gradle/wrapper-validation-action@v1
+
         - name: Run tests
           # Using --scan publishes the test results to the gradle server
           # When using spock test, the gradle server shows the details of the failures, eliminating the need to publish JUnit test reports
-          run: |
-              chmod +x gradlew
-              ./gradlew build publishToMavenLocal --console=plain --no-daemon
+          uses: gradle/gradle-build-action@v2
+          with:
+              arguments: |
+                  build
+                  publishToMavenLocal
+                  --console=plain
+                  --no-daemon
 
         - name: Publish test reports
           uses: mikepenz/action-junit-report@v2
