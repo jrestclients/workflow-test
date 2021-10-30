@@ -126,6 +126,7 @@ jobs:
           uses: gradle/wrapper-validation-action@v1
 
         - name: Run tests
+          if: success()
           # Using --scan publishes the test results to the gradle server
           # When using spock test, the gradle server shows the details of the failures, eliminating the need to publish JUnit test reports
           uses: gradle/gradle-build-action@v2
@@ -136,6 +137,7 @@ jobs:
                   --no-daemon
 
         - name: Publish to MavenLocal
+          if: success()
           # Using --scan publishes the test results to the gradle server
           # When using spock test, the gradle server shows the details of the failures, eliminating the need to publish JUnit test reports
           uses: gradle/gradle-build-action@v2
