@@ -48,7 +48,34 @@ jobs:
         - name: Validate gradle wrapper
           uses: gradle/wrapper-validation-action@v1
 
-        - name: Build, test, publishToMavenLocal, publishToSonatype and closeSonatypeStagingRepository
+        - name: Build and Test
+          uses: gradle/gradle-build-action@v2
+          with:
+              arguments: |
+                  --info
+                  --console=plain
+                  --no-daemon
+                  build
+
+        - name: publishToMavenLocal, publishToSonatype and closeSonatypeStagingRepository
+          if: success()
+          uses: gradle/gradle-build-action@v2
+          with:
+              arguments: |
+                  --info
+                  --console=plain
+                  --no-daemon
+                  publishToMavenLocal
+                  -Pversion=${{ github.event.release.tag_name }}
+                  -PsignPublication=true
+
+        - name: Display tree of mavenLocal
+          if: success()
+          run: tree ~/.m2/repository/io/github/jrestclients
+
+
+        - name: publishToSonatype and closeSonatypeStagingRepository
+          if: success()
           uses: gradle/gradle-build-action@v2
           env:
               ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
@@ -62,14 +89,9 @@ jobs:
                   --info
                   --console=plain
                   --no-daemon
-                  build
-                  publishToMavenLocal
                   publishToSonatype
                   closeSonatypeStagingRepository
                   -Pversion=${{ github.event.release.tag_name }}
                   -PsignPublication=true
-
-        - name: Display tree of mavenLocal
-          run: tree ~/.m2/repository/io/github/jrestclients
 
         # Additional steps are needed to update the documentation
